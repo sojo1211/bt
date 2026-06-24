@@ -97,9 +97,10 @@ export function SellerVerifier() {
 
   // 고유한 세션 토큰 생성
   const sessionToken = useMemo(() => Math.random().toString(36).substring(2, 10).toUpperCase(), [showMobileIdModal])
-  // 실제 로칼 백엔드로 연결되는 인증 페이지 URL (QR 스캔 후 스마트폰에서 열림)
-  // 백엔드 URL: 로컬은 .env.local, 배포 시에는 .env.production의 VITE_API_BASE_URL 사용
-  const qrVerifyUrl = `${import.meta.env.VITE_API_BASE_URL}/mobile-id/verify/${sessionToken}?type=${mobileIdType === 'license' ? 'driver_license' : 'resident_id'}`
+  // 백엔드 URL: 환경변수 우선, 없으면 Render 주소로 폴백
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://safe-trade-ai-backend.onrender.com'
+  // 실제 백엔드로 연결되는 인증 페이지 URL (QR 스캔 후 스마트폰에서 열림)
+  const qrVerifyUrl = `${API_BASE_URL}/mobile-id/verify/${sessionToken}?type=${mobileIdType === 'license' ? 'driver_license' : 'resident_id'}`
 
   // 컴포넌트 언마운트 시 웹캠 리소스 해제
   useEffect(() => {
@@ -116,7 +117,7 @@ export function SellerVerifier() {
     if (mobileIdStep === 'qr') {
       timer = window.setInterval(async () => {
         try {
-          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/mobile-id/status/${sessionToken}`)
+          const res = await fetch(`${API_BASE_URL}/api/mobile-id/status/${sessionToken}`)
           const data = await res.json()
           if (data.status === 'approved') {
             window.clearInterval(timer)
@@ -212,7 +213,6 @@ export function SellerVerifier() {
   }
 
   const handleVerify = async (e: React.FormEvent) => {
-
     e.preventDefault()
     if (!name || !phone) {
       setError('이름과 전화번호는 필수 입력 항목입니다.')
@@ -220,6 +220,9 @@ export function SellerVerifier() {
     }
     setError(null)
     setLoading(true)
+
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://safe-trade-ai-backend.onrender.com'
+    console.log('[Safe-Trade AI] API Base URL:', API_BASE)
 
     const formData = new FormData()
     formData.append('name', name)
@@ -230,10 +233,15 @@ export function SellerVerifier() {
     if (selfie) formData.append('selfie', selfie)
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/verify/seller`, {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60초 타임아웃 (Render 슬립 해제 대기)
+
+      const response = await fetch(`${API_BASE}/api/verify/seller`, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         const data: VerificationResult = await response.json()
@@ -242,8 +250,12 @@ export function SellerVerifier() {
         const errData = await response.json()
         setError(errData.detail || '검증 요청 중 오류가 발생했습니다.')
       }
-    } catch (err) {
-      setError('서버 연결 실패. FastAPI 서버가 켜져 있는지 확인해 주세요.')
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        setError('서버 응답 시간 초과 (60초). Render 무료 플랜은 15분 비활성 시 슬립 상태가 됩니다. 잠시 후 다시 시도해 주세요.')
+      } else {
+        setError(`백엔드 서버 연결 실패. Render 무료 플랜은 첫 요청 시 30~60초 대기가 필요합니다. 잠시 후 다시 시도해 주세요.\n서버 주소: ${API_BASE}`)
+      }
     } finally {
       setLoading(false)
     }
