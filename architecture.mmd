@@ -1,0 +1,38 @@
+flowchart TD
+    User([사용자 입력 및 사진 제출]) --> FE[Frontend (React)]
+    
+    subgraph Backend [Backend (FastAPI MVP)]
+        API[API Gateway]
+        
+        subgraph AI_Verification [AI 검증 파이프라인]
+            OCR[EasyOCR Custom Model<br>텍스트 추출]
+            Face[InceptionResnetV1<br>안면 임베딩 매칭]
+        end
+        
+        subgraph External_API [외부 API 연동]
+            CODEF[CODEF API<br>운전면허 진위확인 Mocking]
+            Cheat[더치트/금융 API<br>사기이력 조회]
+        end
+        
+        subgraph LLM_Explain [LLM 해설 모듈]
+            Gemini[Gemini / GPT-4o<br>검증 결과 해설]
+        end
+    end
+    
+    FE --> API
+    API --> AI_Verification
+    API --> External_API
+    
+    AI_Verification -->|결과 스코어| LLM_Explain
+    External_API -->|조회 데이터| LLM_Explain
+    
+    LLM_Explain -->|최종 친화적 해설| API
+    API --> FE
+    
+    classDef ai fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef ext fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef llm fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    
+    class AI_Verification ai;
+    class External_API ext;
+    class LLM_Explain llm;
