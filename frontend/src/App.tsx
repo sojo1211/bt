@@ -8,7 +8,7 @@ function App() {
   const checkHealth = async () => {
     setBackendStatus('loading')
     try {
-      const response = await fetch('http://localhost:8000/health')
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/health`)
       if (response.ok) {
         const data = await response.json()
         if (data.status === 'healthy') {

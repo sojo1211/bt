@@ -98,8 +98,8 @@ export function SellerVerifier() {
   // 고유한 세션 토큰 생성
   const sessionToken = useMemo(() => Math.random().toString(36).substring(2, 10).toUpperCase(), [showMobileIdModal])
   // 실제 로칼 백엔드로 연결되는 인증 페이지 URL (QR 스캔 후 스마트폰에서 열림)
-  const localIP = window.location.hostname
-  const qrVerifyUrl = `http://${localIP}:8000/mobile-id/verify/${sessionToken}?type=${mobileIdType === 'license' ? 'driver_license' : 'resident_id'}`
+  // 백엔드 URL: 로컬은 .env.local, 배포 시에는 .env.production의 VITE_API_BASE_URL 사용
+  const qrVerifyUrl = `${import.meta.env.VITE_API_BASE_URL}/mobile-id/verify/${sessionToken}?type=${mobileIdType === 'license' ? 'driver_license' : 'resident_id'}`
 
   // 컴포넌트 언마운트 시 웹캠 리소스 해제
   useEffect(() => {
@@ -116,7 +116,7 @@ export function SellerVerifier() {
     if (mobileIdStep === 'qr') {
       timer = window.setInterval(async () => {
         try {
-          const res = await fetch(`http://localhost:8000/api/mobile-id/status/${sessionToken}`)
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/mobile-id/status/${sessionToken}`)
           const data = await res.json()
           if (data.status === 'approved') {
             window.clearInterval(timer)
@@ -230,7 +230,7 @@ export function SellerVerifier() {
     if (selfie) formData.append('selfie', selfie)
 
     try {
-      const response = await fetch('http://localhost:8000/api/verify/seller', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/verify/seller`, {
         method: 'POST',
         body: formData,
       })
@@ -403,7 +403,7 @@ export function SellerVerifier() {
                         fd.append('birth_date', licBirth)
                         fd.append('license_number', licNumber)
                         fd.append('serial_number', licSerial)
-                        const res = await fetch('http://localhost:8000/api/verify/driver-license', { method: 'POST', body: fd })
+                        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/verify/driver-license`, { method: 'POST', body: fd })
                         const data = await res.json()
                         setLicVerifyResult(data)
                         if (data.is_valid) setTimeout(() => setMobileIdStep('done'), 1200)

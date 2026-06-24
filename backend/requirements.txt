@@ -1,9 +1,15 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 langchain
 langchain-openai
+langchain-google-genai
+google-generativeai
 python-multipart
 python-dotenv
+requests
 easyocr
 opencv-python-headless
+torch
+torchvision
+numpy
