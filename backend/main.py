@@ -1,4 +1,8 @@
 import os
+import sys
+
+# Render 배포 시 어느 경로에서 실행되든 services 모듈을 찾을 수 있도록 설정
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
