@@ -1,11 +1,7 @@
-import cv2
-import numpy as np
-import torch
-import torch.nn as nn
-import torchvision.models as models
-import torchvision.transforms as transforms
 from typing import Dict, Any, Tuple
 from abc import ABC, abstractmethod
+# cv2, torch, torchvision은 PyTorchFaceMatcherService 내부에서 지연 임포트합니다.
+# 이렇게 해야 패키지 미설치 환경에서도 container.py의 폴백 로직이 정상 동작합니다.
 
 class BaseFaceMatcherService(ABC):
     @abstractmethod
@@ -28,6 +24,20 @@ class MockFaceMatcherService(BaseFaceMatcherService):
 
 class PyTorchFaceMatcherService(BaseFaceMatcherService):
     def __init__(self):
+        # 지연 임포트: 패키지 미설치 환경(Render 무료 플랜)에서 container.py 폴백이 작동하도록
+        import cv2
+        import numpy as np
+        import torch
+        import torch.nn as nn
+        import torchvision.models as models
+        import torchvision.transforms as transforms
+        
+        # 모듈 수준에서 사용할 수 있도록 인스턴스 속성으로 저장
+        self._cv2 = cv2
+        self._np = np
+        self._torch = torch
+        self._nn = nn
+
         # 윈도우 한글 경로(non-ASCII) 이슈 대응을 위해 Haar Cascade XML 파일을 Temp 폴더로 복사하여 로드합니다.
         import os
         import shutil
@@ -66,11 +76,12 @@ class PyTorchFaceMatcherService(BaseFaceMatcherService):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-    def _apply_frequency_filtering(self, img_gray: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _apply_frequency_filtering(self, img_gray) -> Tuple:
         """
         2D FFT를 적용하여 주파수 영역에서 조명 노이즈(저주파)와 망점 노이즈(고주파)를 제거하고 복원합니다.
         반환값: (Magnitude Spectrum, Reconstructed Grayscale Image)
         """
+        np = self._np
         # 1. 2D FFT 변환 및 Shift (저주파 성분을 중앙으로 배치)
         f = np.fft.fft2(img_gray)
         fshift = np.fft.fftshift(f)
@@ -119,13 +130,15 @@ class PyTorchFaceMatcherService(BaseFaceMatcherService):
             
         return magnitude_spectrum, img_back
 
-    def _detect_and_crop_face_with_steps(self, img: np.ndarray) -> Dict[str, Any]:
+    def _detect_and_crop_face_with_steps(self, img) -> Dict[str, Any]:
         """
         이미지에서 얼굴을 검출/크롭하고 중간 처리 단계 이미지(흑백, 이퀄라이즈, 크롭) 및 주파수 변환 이미지들을 base64 문자열로 함께 반환합니다.
         """
         import base64
+        cv2 = self._cv2
+        np = self._np
         
-        def to_b64(image: np.ndarray) -> str:
+        def to_b64(image) -> str:
             _, buffer = cv2.imencode('.jpg', image)
             return base64.b64encode(buffer).decode('utf-8')
             
@@ -207,7 +220,7 @@ class PyTorchFaceMatcherService(BaseFaceMatcherService):
             "reconstructed_base64": to_b64(reconstructed_face)
         }
 
-    def _detect_and_crop_face(self, img: np.ndarray) -> Tuple[np.ndarray, bool]:
+    def _detect_and_crop_face(self, img) -> Tuple:
         res = self._detect_and_crop_face_with_steps(img)
         return res["face_crop"], not res["is_fallback"]
 
@@ -215,6 +228,9 @@ class PyTorchFaceMatcherService(BaseFaceMatcherService):
         """
         크롭된 얼굴 이미지에서 PyTorch 모델 특징 벡터(임베딩)를 추출합니다.
         """
+        import torch.nn as nn
+        cv2 = self._cv2
+        torch = self._torch
         # BGR -> RGB 변환
         face_rgb = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
         
@@ -231,6 +247,9 @@ class PyTorchFaceMatcherService(BaseFaceMatcherService):
 
     async def match_faces(self, id_image_bytes: bytes, selfie_image_bytes: bytes) -> Dict[str, Any]:
         try:
+            cv2 = self._cv2
+            np = self._np
+            torch = self._torch
             # 1. 이미지 디코딩
             id_nparr = np.frombuffer(id_image_bytes, np.uint8)
             id_img = cv2.imdecode(id_nparr, cv2.IMREAD_COLOR)

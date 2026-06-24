@@ -8,8 +8,6 @@ google-generativeai
 python-multipart
 python-dotenv
 requests
-easyocr
-opencv-python-headless
-torch
-torchvision
 numpy
+# torch, torchvision, easyocr, opencv-python-headless 는 Render 무료 플랜(512MB) 메모리 초과로 제외됨
+# 해당 기능은 container.py의 폴백 로직에 의해 Mock 서비스로 자동 대체됩니다.

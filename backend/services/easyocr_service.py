@@ -1,13 +1,19 @@
 import os
 import re
-import numpy as np
-import cv2
-import easyocr
 from typing import Dict, Any
 from .base import BaseOCRService
+# numpy, cv2, easyocr는 EasyOCRService.__init__ 내부에서 지연 임포트합니다.
+# 패키지 미설치 환경(Render 무료 플랜)에서 container.py의 폴백 로직이 작동하도록 합니다.
 
 class EasyOCRService(BaseOCRService):
     def __init__(self, custom_model_path: str = None, custom_model_name: str = None):
+        # 지연 임포트: 패키지 미설치 환경에서 container.py 폴백이 작동하도록
+        import numpy as np
+        import cv2
+        import easyocr
+        self._np = np
+        self._cv2 = cv2
+
         # 전이학습된 커스텀 가중치가 제공될 경우 우선 로드 (Transfer Learning 연계)
         if custom_model_path and custom_model_name and os.path.exists(custom_model_path):
             print(f"커스텀 EasyOCR 모델 로드 중: {custom_model_name}")
@@ -23,6 +29,8 @@ class EasyOCRService(BaseOCRService):
 
     async def extract_identity(self, image_bytes: bytes) -> Dict[str, Any]:
         try:
+            np = self._np
+            cv2 = self._cv2
             # 바이트 데이터를 OpenCV 이미지 객체로 디코딩
             nparr = np.frombuffer(image_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
