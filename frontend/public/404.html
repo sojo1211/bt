@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting…</title>
+  <script>
+    // GitHub Pages 경로가 /bt/ 로 설정돼 있기 때문에 404 페이지가 뜨면 루트로 리다이렉트
+    const base = "/bt/";
+    location.replace(base + location.search + location.hash);
+  </script>
+</head>
+<body>
+  <p>페이지를 찾을 수 없습니다. 잠시 후 메인 페이지로 이동합니다…</p>
+</body>
+</html>
